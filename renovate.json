@@ -15,10 +15,6 @@
       ]
     },
     {
-      "matchManagers": ["gomod"],
-      "postUpdateOptions": ["gomodTidy"]
-    },
-    {
       "matchPackageNames": ["next", "react", "react-*", "@types/react", "@types/react-*", "eslint", "eslint-config-next"],
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["major"],
