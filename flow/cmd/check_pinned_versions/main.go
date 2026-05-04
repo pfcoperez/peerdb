@@ -71,7 +71,7 @@ func main() {
 			continue
 		}
 		if ver != pinnedVer {
-			fmt.Fprintf(os.Stderr, "pinned module %s: go.mod has %s, expected %s —"+
+			fmt.Fprintf(os.Stderr, "pinned module %s: go.mod has %s, TEST TEST expected %s —"+
 				" if this upgrade is intentional, update pinnedVersions in cmd/check_pinned_versions/main.go\n", mod, ver, pinnedVer)
 			failed = true
 		}
