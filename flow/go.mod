@@ -308,3 +308,9 @@ replace github.com/tikv/client-go/v2 => github.com/PeerDB-io/tikv-client-go/v2 v
 replace github.com/tikv/pd/client => github.com/tikv/pd/client v0.0.0-20251229071808-6173d50c004c // PINNED(DBI-444): the underlying dependency changed an interface
 
 replace github.com/PeerDB-io/peerdb/flow/pkg => ./pkg
+
+replace cloud.google.com/go/bigquery => cloud.google.com/go/bigquery v1.72.0 // PINNED: v1.73.0+ requires google.golang.org/api v0.259.0
+
+replace cloud.google.com/go/pubsub/v2 => cloud.google.com/go/pubsub/v2 v2.3.0 // PINNED: v2.4.0+ requires google.golang.org/api v0.259.0
+
+replace google.golang.org/api => google.golang.org/api v0.257.0 // PINNED(DBI-443): v0.258.0 deprecates WithCredentialsJSON, migrate to WithAuthCredentialsJSON

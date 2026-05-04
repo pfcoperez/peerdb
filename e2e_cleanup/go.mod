@@ -100,3 +100,9 @@ require (
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+replace cloud.google.com/go/bigquery => cloud.google.com/go/bigquery v1.72.0 // PINNED: v1.73.0+ requires google.golang.org/api v0.259.0
+
+replace cloud.google.com/go/pubsub/v2 => cloud.google.com/go/pubsub/v2 v2.3.0 // PINNED: v2.4.0+ requires google.golang.org/api v0.259.0
+
+replace google.golang.org/api => google.golang.org/api v0.257.0 // PINNED(DBI-443): v0.258.0 deprecates WithCredentialsJSON, migrate to WithAuthCredentialsJSON
