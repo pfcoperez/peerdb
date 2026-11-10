@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,7 +19,6 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/PeerDB-io/peerdb/flow/connectors/utils/structured"
 	"github.com/PeerDB-io/peerdb/flow/generated/protos"
 	"github.com/PeerDB-io/peerdb/flow/internal"
 	"github.com/PeerDB-io/peerdb/flow/model"
@@ -844,10 +844,11 @@ func TestDecodeEventDeletePreimage(t *testing.T) {
 	req := &model.PullRecordsRequest[model.RecordItems]{InternalVersion: shared.InternalVersion_Latest}
 	projector, err := newStructuredSchemaProjector(structuredTestColumns(), nil, true)
 	require.NoError(t, err)
-	structuredProjectors := map[string]*structured.SchemaProjector{"db.coll": projector}
+	var structuredProjectors sync.Map
+	structuredProjectors.Store("db.coll", projector)
 
 	decodeOne := func(
-		t *testing.T, event encodedMongoEvent, projectors map[string]*structured.SchemaProjector,
+		t *testing.T, event encodedMongoEvent, projectors *sync.Map,
 	) model.Record[model.RecordItems] {
 		t.Helper()
 		records, err := c.decodeEvent([]encodedMongoEvent{event}, req, projectors)
@@ -891,13 +892,13 @@ func TestDecodeEventDeletePreimage(t *testing.T) {
 	})
 
 	t.Run("pre-image populates the structured columns", func(t *testing.T) {
-		items := deleteItems(t, decodeOne(t, event(operationTypeDelete, &preimage), structuredProjectors))
+		items := deleteItems(t, decodeOne(t, event(operationTypeDelete, &preimage), &structuredProjectors))
 		require.Equal(t, types.QValueString{Val: "Ada"}, items.GetColumnValue("name"))
 		require.Equal(t, types.QValueInt64{Val: 36}, items.GetColumnValue("age"))
 	})
 
 	t.Run("no pre-image leaves the structured columns null", func(t *testing.T) {
-		items := deleteItems(t, decodeOne(t, event(operationTypeDelete, nil), structuredProjectors))
+		items := deleteItems(t, decodeOne(t, event(operationTypeDelete, nil), &structuredProjectors))
 		require.Equal(t, types.QValueNull(types.QValueKindString), items.GetColumnValue("name"))
 		require.Equal(t, types.QValueNull(types.QValueKindInt64), items.GetColumnValue("age"))
 	})

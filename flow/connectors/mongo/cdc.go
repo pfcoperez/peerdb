@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -314,7 +315,7 @@ type encodedMongoEvent struct {
 func (c *MongoConnector) decodeEvent(
 	events []encodedMongoEvent,
 	req *model.PullRecordsRequest[model.RecordItems],
-	structuredProjectors map[string]*structured.SchemaProjector,
+	structuredProjectors *sync.Map,
 ) ([]model.Record[model.RecordItems], error) {
 	// Utils used by this routine.
 	converter := NewDirectBsonConverter()
@@ -348,7 +349,13 @@ func (c *MongoConnector) decodeEvent(
 			maybeDocument = event.maybeBeforeDocument
 		}
 
-		if projector := structuredProjectors[event.sourceTableName]; projector != nil {
+		var projector *structured.SchemaProjector
+		if structuredProjectors != nil {
+			if v, ok := structuredProjectors.Load(event.sourceTableName); ok {
+				projector, _ = v.(*structured.SchemaProjector)
+			}
+		}
+		if projector != nil {
 			// Structured ingestion: the document fields are projected onto the table's schema columns.
 
 			// An absent document will end up storing NULL on all structured columns
@@ -555,7 +562,7 @@ func (c *MongoConnector) PullRecords(
 	// Structured ingestion is a per-table setting: resolve each structured table's projector once,
 	// against the table schema persisted at setup. Decode workers share the projectors, which is safe
 	// as projecting only reads them, while each worker owns its converter.
-	structuredProjectors := make(map[string]*structured.SchemaProjector)
+	var structuredProjectors sync.Map
 	for sourceTableName, tableMapping := range req.TableNameMapping {
 		structuredCfg := tableMapping.StructuredIngestionConfiguration
 		if !structuredCfg.GetEnabled() {
@@ -569,7 +576,7 @@ func (c *MongoConnector) PullRecords(
 		if err != nil {
 			return fmt.Errorf("failed to build structured schema projector for table %s: %w", sourceTableName, err)
 		}
-		structuredProjectors[sourceTableName] = projector
+		structuredProjectors.Store(sourceTableName, projector)
 	}
 
 	workerPool := concurrency.PullRecordsWorkerPool[encodedMongoEvent, []model.Record[model.RecordItems], string]{
@@ -589,7 +596,7 @@ func (c *MongoConnector) PullRecords(
 			defer func() {
 				parallelProcessTime.Add(int64(time.Since(decodeStart)))
 			}()
-			return c.decodeEvent(events, req, structuredProjectors)
+			return c.decodeEvent(events, req, &structuredProjectors)
 		},
 		Send: func(ctx context.Context, items []model.Record[model.RecordItems], resumeToken string) error {
 			recordSendStart := time.Now()
