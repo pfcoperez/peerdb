@@ -85,6 +85,8 @@ func SnapshotWorkerMain(ctx context.Context, opts *SnapshotWorkerOptions) (*Work
 		return nil, fmt.Errorf("unable to create otel manager: %w", err)
 	}
 
+	// SnapshotFlowWorkflow: child of CDCFlowWorkflow, runs on the dedicated snapshot task queue; sets up replication
+	// (slot/publication), exports and holds a consistent source snapshot, and runs the initial load per table.
 	w.RegisterWorkflow(peerflow.SnapshotFlowWorkflow)
 	// explicitly not initializing mutex, in line with design
 	w.RegisterActivity(&activities.SnapshotActivity{

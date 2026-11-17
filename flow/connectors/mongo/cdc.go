@@ -307,6 +307,7 @@ type encodedMongoEvent struct {
 	documentKey          bson.Raw
 	commitTimeNanos      int64
 	clusterTime          bson.Timestamp
+	addsNewFields        bool
 }
 
 // decodeEvent is spun up by PullRecordsWorkerPool in separate goroutines, up to
@@ -589,6 +590,16 @@ func (c *MongoConnector) PullRecords(
 			bytes, err := c.hydrateUpdateEvents(ctx, events)
 			deltaBytesProcessed.Add(bytes)
 			cumulativeBytesProcessed.Add(bytes)
+
+			tableProjector, ok := structuredProjectors.Load(events[0].sourceTableName)
+			if !ok {
+				return fmt.Errorf("no structured projector found for table %s", events[0].sourceTableName)
+			}
+
+			// PFCOPEREZ: Candidate here for signaling extra field + update projector
+			// 1. Add schema delta to each encodedMongoEvent (field for schema delta)
+			// 2. Update the projector
+
 			return err
 		},
 		WorkerFunc: func(events []encodedMongoEvent) ([]model.Record[model.RecordItems], error) {
@@ -603,6 +614,7 @@ func (c *MongoConnector) PullRecords(
 			defer func() {
 				addRecordTime.Add(int64(time.Since(recordSendStart)))
 			}()
+			// PFCOPEREZ: In the loop of `recordSender`, detect deltas and generate corresponding events.
 			return c.recordSender(ctx, items, resumeToken, req)
 		},
 	}
